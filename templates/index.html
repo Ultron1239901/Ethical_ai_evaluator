@@ -1,0 +1,402 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<title>Ethical AI Response Evaluator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --bg:#0f0f1a;
+  --card:#1e1e2f;
+  --accent:#6c63ff;
+  --safe:#4CAF50;
+  --unsafe:#FF4C4C;
+  --text:#f5f6ff;
+  --muted:#b8b8d9;
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Space Grotesk',Arial,sans-serif;
+  background:radial-gradient(1200px 600px at 10% -10%, #23234a 0%, rgba(15,15,26,0) 60%),
+             radial-gradient(900px 500px at 100% 0%, #1c1c3a 0%, rgba(15,15,26,0) 55%),
+             var(--bg);
+  color:var(--text);
+}
+.container{
+  max-width:1200px;
+  margin:40px auto 80px;
+  padding:0 20px;
+  text-align:center;
+}
+.hero{
+  margin:10px auto 30px;
+}
+.hero h1{
+  font-size:40px;
+  margin:0 0 10px;
+  letter-spacing:0.5px;
+}
+.hero p{
+  color:var(--muted);
+  margin:0;
+}
+.chat-card{
+  background:var(--card);
+  border-radius:20px;
+  padding:28px;
+  box-shadow:0 12px 30px rgba(0,0,0,0.45);
+  max-width:860px;
+  margin:30px auto 0;
+  position:relative;
+}
+.prompt-input{
+  width:100%;
+  height:160px;
+  border:none;
+  outline:none;
+  resize:vertical;
+  background:#2a2a3c;
+  color:var(--text);
+  font-size:16px;
+  padding:16px;
+  border-radius:14px;
+}
+.actions{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  align-items:center;
+  margin-top:16px;
+  flex-wrap:wrap;
+}
+.generate-btn{
+  padding:14px 34px;
+  background:linear-gradient(90deg,#6c63ff,#9f7aea);
+  border:none;
+  border-radius:12px;
+  color:white;
+  font-weight:600;
+  cursor:pointer;
+  font-size:16px;
+  transition:transform .2s ease, box-shadow .2s ease;
+  box-shadow:0 8px 18px rgba(108,99,255,0.35);
+}
+.generate-btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 24px rgba(108,99,255,0.45);
+}
+.secondary{
+  padding:12px 26px;
+  background:#232342;
+  border:1px solid rgba(108,99,255,0.35);
+  border-radius:12px;
+  color:var(--text);
+  cursor:pointer;
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.secondary:hover{
+  transform:translateY(-2px);
+  border-color:var(--accent);
+  box-shadow:0 10px 20px rgba(0,0,0,0.35);
+}
+.voice-btn{
+  padding:12px 20px;
+  background:linear-gradient(90deg,#2a2a3c,#3a3a56);
+  border:1px solid rgba(108,99,255,0.35);
+  border-radius:12px;
+  color:var(--text);
+  cursor:pointer;
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.voice-btn.recording{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(108,99,255,0.2);
+}
+.loader-wrap{
+  margin-top:20px;
+  display:none;
+  align-items:center;
+  gap:10px;
+  justify-content:center;
+  color:var(--muted);
+}
+.loader{
+  border:5px solid rgba(255,255,255,0.2);
+  border-top:5px solid var(--accent);
+  border-radius:50%;
+  width:34px;
+  height:34px;
+  animation:spin 1s linear infinite;
+}
+@keyframes spin{
+  0%{transform:rotate(0deg);}
+  100%{transform:rotate(360deg);}
+}
+.metrics{
+  margin-top:28px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:16px;
+  text-align:left;
+}
+.metric-card{
+  background:var(--card);
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.35);
+}
+.metric-title{
+  color:var(--muted);
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+}
+.metric-value{
+  font-size:24px;
+  font-weight:700;
+  margin-top:6px;
+}
+.curated-panel{
+  margin-top:28px;
+  text-align:left;
+}
+.curated-panel h3{
+  margin:0 0 12px;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+.chip{
+  background:#24243c;
+  border:1px solid rgba(108,99,255,0.3);
+  color:var(--text);
+  padding:8px 12px;
+  border-radius:999px;
+  cursor:pointer;
+  transition:transform .2s ease, border-color .2s ease;
+  font-size:14px;
+}
+.chip:hover{
+  transform:translateY(-2px);
+  border-color:var(--accent);
+}
+.analytics{
+  margin-top:50px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:20px;
+}
+.chart-card{
+  background:var(--card);
+  padding:20px;
+  border-radius:16px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.4);
+  text-align:left;
+}
+.chart-card h3{
+  margin:0 0 10px;
+  font-size:18px;
+}
+.footer-note{
+  margin-top:16px;
+  color:var(--muted);
+  font-size:14px;
+}
+@media (max-width:700px){
+  .hero h1{font-size:30px;}
+  .chat-card{padding:18px;}
+}
+</style>
+<script>
+function showLoader(){
+  document.getElementById("loaderWrap").style.display="flex";
+}
+</script>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>Ethical AI Response Evaluator</h1>
+      <p>Audit prompts, spot bias, and measure safety risk with a modern AI dashboard.</p>
+    </div>
+
+    <form method="POST" action="/evaluate/" onsubmit="showLoader()">
+      {% csrf_token %}
+      <div class="chat-card">
+        <textarea
+          name="prompt"
+          placeholder="Ask anything to evaluate AI safety..."
+          class="prompt-input"
+          id="promptInput"
+          required
+        ></textarea>
+        <div class="actions">
+          <button class="generate-btn" type="submit">Generate & Evaluate</button>
+          <button class="voice-btn" type="button" id="voiceBtn">Voice Input</button>
+          <a href="/curated-tests/"><button class="secondary" type="button">Run Curated Ethical Tests</button></a>
+        </div>
+        <div id="loaderWrap" class="loader-wrap">
+          <div class="loader"></div>
+          <span>Analyzing response safety...</span>
+        </div>
+
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-title">Safe Prompts</div>
+            <div class="metric-value" id="safePct">0%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Unsafe Prompts</div>
+            <div class="metric-value" id="unsafePct">0%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Most Detected Type</div>
+            <div class="metric-value" id="topType">Safe</div>
+          </div>
+        </div>
+
+        <div class="curated-panel">
+          <h3>Curated Prompt Starters</h3>
+          <div class="chips" id="promptChips">
+            {% for p in curated_prompts %}
+              <button type="button" class="chip" data-prompt="{{p}}">{{p}}</button>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="analytics">
+      <div class="chart-card">
+        <h3>Safe vs Unsafe Prompts</h3>
+        <canvas id="pieChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Bias Categories Detected</h3>
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+
+    <div class="footer-note">Input: 5-10 curated ethical prompts - Output: model responses, bias analysis, and safety assessment</div>
+  </div>
+
+<script>
+const safeCount = {{ safe_count|default:0 }};
+const unsafeCount = {{ unsafe_count|default:0 }};
+const violenceCount = {{ category_counts.violence|default:0 }};
+const biasCount = {{ category_counts.bias|default:0 }};
+const illegalCount = {{ category_counts.illegal|default:0 }};
+const selfharmCount = {{ category_counts.selfharm|default:0 }};
+const totalCount = safeCount + unsafeCount;
+
+function pct(part, total){
+  if(total === 0) return 0;
+  return Math.round((part / total) * 100);
+}
+
+const safePct = pct(safeCount, totalCount);
+const unsafePct = pct(unsafeCount, totalCount);
+
+const typeMap = [
+  {label: 'Violence', count: violenceCount},
+  {label: 'Bias', count: biasCount},
+  {label: 'Illegal', count: illegalCount},
+  {label: 'Self Harm', count: selfharmCount},
+  {label: 'Safe', count: safeCount}
+];
+
+const topType = typeMap.sort((a,b) => b.count - a.count)[0]?.label || 'Safe';
+
+document.getElementById('safePct').textContent = safePct + '%';
+document.getElementById('unsafePct').textContent = unsafePct + '%';
+document.getElementById('topType').textContent = topType;
+
+new Chart(document.getElementById("pieChart"),{
+  type:'doughnut',
+  data:{
+    labels:['Safe','Unsafe'],
+    datasets:[{
+      data:[safeCount, unsafeCount],
+      backgroundColor:['#4CAF50','#FF4C4C']
+    }]
+  },
+  options:{
+    plugins:{legend:{labels:{color:'#f5f6ff'}}}
+  }
+});
+
+new Chart(document.getElementById("barChart"),{
+  type:'bar',
+  data:{
+    labels:['Violence','Bias','Illegal','Self Harm'],
+    datasets:[{
+      label:'Detected Prompts',
+      data:[violenceCount, biasCount, illegalCount, selfharmCount],
+      backgroundColor:'#6c63ff'
+    }]
+  },
+  options:{
+    scales:{
+      x:{ticks:{color:'#f5f6ff'}},
+      y:{ticks:{color:'#f5f6ff'},grid:{color:'rgba(255,255,255,0.08)'}}
+    },
+    plugins:{legend:{labels:{color:'#f5f6ff'}}}
+  }
+});
+
+const promptInput = document.getElementById('promptInput');
+const chips = document.getElementById('promptChips');
+
+if(chips){
+  chips.addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip');
+    if(!btn) return;
+    promptInput.value = btn.getAttribute('data-prompt') || '';
+    promptInput.focus();
+  });
+}
+
+const voiceBtn = document.getElementById('voiceBtn');
+let recognition;
+let isRecording = false;
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.continuous = false;
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    promptInput.value = transcript;
+  };
+  recognition.onend = () => {
+    isRecording = false;
+    voiceBtn.classList.remove('recording');
+    voiceBtn.textContent = 'Voice Input';
+  };
+} else {
+  voiceBtn.disabled = true;
+  voiceBtn.textContent = 'Voice Not Supported';
+}
+
+voiceBtn.addEventListener('click', () => {
+  if(!recognition) return;
+  if(isRecording){
+    recognition.stop();
+    return;
+  }
+  isRecording = true;
+  voiceBtn.classList.add('recording');
+  voiceBtn.textContent = 'Listening...';
+  recognition.start();
+});
+</script>
+</body>
+</html>

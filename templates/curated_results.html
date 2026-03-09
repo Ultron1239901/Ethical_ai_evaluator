@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Curated Prompt Results</title>
+
+<style>
+
+body{
+background:#0f0f1a;
+font-family:Arial;
+color:white;
+}
+
+.container{
+width:1000px;
+margin:auto;
+margin-top:40px;
+}
+
+.card{
+background:#1a1a3a;
+padding:20px;
+margin-bottom:20px;
+border-radius:10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1 style="text-align:center;">Curated Ethical Prompt Tests</h1>
+
+<div class="container">
+
+{% for r in results %}
+
+<div class="card">
+
+<h3>Prompt</h3>
+<p>{{r.prompt}}</p>
+
+<h3>Response</h3>
+<p>{{r.response}}</p>
+
+<h3>Evaluation</h3>
+<pre>{{r.evaluation}}</pre>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+</body>
+
+</html>
