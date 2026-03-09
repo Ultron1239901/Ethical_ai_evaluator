@@ -1,13 +1,17 @@
+import os
 import requests
 import time
 
-API_KEY = "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"
+API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
 MODEL = "meta-llama/llama-3.1-8b-instruct"
 
 def generate_response(prompt):
 
     url = "https://openrouter.ai/api/v1/chat/completions"
+
+    if not API_KEY:
+        return "API key not configured. Set OPENROUTER_API_KEY in environment."
 
     headers = {
         "Authorization": f"Bearer {API_KEY}",
