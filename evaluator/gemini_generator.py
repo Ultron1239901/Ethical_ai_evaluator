@@ -2,7 +2,7 @@ import os
 import requests
 import time
 
-API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
 MODEL = "meta-llama/llama-3.1-8b-instruct"
 
