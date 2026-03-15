@@ -372,6 +372,25 @@
       });
     }
 
+    async function parseApiResponse(response) {
+      const contentType = response.headers.get('content-type') || '';
+      const rawText = await response.text();
+
+      if (contentType.includes('application/json')) {
+        try {
+          return JSON.parse(rawText);
+        } catch (error) {
+          throw new Error('Invalid JSON response from server.');
+        }
+      }
+
+      if (rawText.trim().startsWith('<')) {
+        throw new Error('Server returned an HTML error page. Please try again.');
+      }
+
+      throw new Error(rawText || 'please try again');
+    }
+
     function renderEvaluationResult(data) {
       dashboardSection.style.display = 'block';
       scoreRing.style.setProperty('--score', data.ethical_score || 0);
@@ -411,7 +430,7 @@
           body: formData
         });
 
-        const data = await response.json();
+        const data = await parseApiResponse(response);
         if (!response.ok || data.error) {
           throw new Error(data.message || 'please try again');
         }
@@ -433,7 +452,7 @@
             'Accept': 'application/json'
           }
         });
-        const data = await response.json();
+        const data = await parseApiResponse(response);
         if (!response.ok || data.error) {
           throw new Error(data.message || 'please try again');
         }
