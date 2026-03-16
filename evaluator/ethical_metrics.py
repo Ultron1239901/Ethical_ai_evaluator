@@ -24,10 +24,8 @@ def build_ethical_metrics(payload):
     safety = _normalize_percentage(scores.get("safety"))
     toxicity = _normalize_percentage(scores.get("toxicity"))
     privacy = _normalize_percentage(scores.get("privacy"))
-    hallucination = _normalize_percentage(scores.get("truthfulness"))
-
-    # Placeholder fairness score derived from available safety and bias signals.
-    fairness = round(_clamp((bias + safety) / 2.0), 2)
+    fairness = _normalize_percentage(scores.get("fairness"))
+    hallucination = _normalize_percentage(scores.get("hallucination"))
 
     return {
         "bias": bias,
@@ -37,6 +35,7 @@ def build_ethical_metrics(payload):
         "privacy": privacy,
         "hallucination": hallucination,
         "ethical_score": _normalize_percentage(payload.get("ethical_score")),
+        "confidence_score": round(payload.get("confidence_score", 0.0), 2),
     }
 
 

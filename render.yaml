@@ -20,5 +20,7 @@ services:
         value: ""
       - key: GEMINI_API_KEY
         value: ""
+      - key: HUGGINGFACE_API_TOKEN
+        value: ""
       - key: CORS_ALLOW_ALL_ORIGINS
         value: "True"

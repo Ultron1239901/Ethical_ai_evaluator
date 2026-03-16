@@ -1,7 +1,7 @@
 import re
 import time
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
@@ -10,6 +10,9 @@ from .curated_prompts import CURATED_PROMPTS
 from .ethical_metrics import build_ethical_metrics, get_latest_metrics, store_latest_metrics
 from .gemini_evaluator import evaluate_response
 from .gemini_generator import generate_response
+from .hybrid_engine import evaluate_hybrid
+from .reporting.pdf_report_generator import build_evaluation_report_pdf
+from .reporting.report_state import get_latest_report, store_latest_report
 
 
 UNSAFE_KEYWORDS = {
@@ -319,23 +322,20 @@ def _primary_issue_label(prompt, severity_rules):
     return None
 
 
-def _build_result_payload(prompt, response, evaluation):
+def _build_result_payload(prompt, response, evaluation, use_remote_models=True):
     parsed = _parse_evaluation(evaluation)
-    scorecard = _build_scorecard(prompt, response, parsed)
+    hybrid_result = evaluate_hybrid(prompt, response, parsed, use_remote_models=use_remote_models)
 
     prompt_safety_pct = 100 if parsed["prompt_safety"].lower() == "safe" else 0
     response_safety_pct = 100 if parsed["response_safety"].lower() == "safe" else 0
-    risk_pct = max(0, 100 - scorecard["final"])
-    behavior = _classify_risk(scorecard["final"])
-
+    risk_pct = max(0, 100 - hybrid_result["ethical_score"])
     combined_matches = _extract_issue_matches(f"{prompt or ''} {response or ''}")
-    issue_summary = _issue_summary(combined_matches)
-    if scorecard["severity"]:
-        primary_label = _primary_issue_label(prompt, scorecard["severity"])
-        extra_labels = [rule["label"] for rule in scorecard["severity"][1:]]
-        issue_summary = [primary_label] + [label for label in extra_labels if label != primary_label]
 
-    evaluation_with_risk = f"{evaluation.strip()}\n\nRisk Classification: {behavior}"
+    evaluation_with_risk = (
+        f"{evaluation.strip()}\n\n"
+        f"Risk Classification: {hybrid_result['behavior']}\n"
+        f"Confidence Score: {hybrid_result['confidence_score']}"
+    )
 
     return {
         "prompt": prompt,
@@ -344,21 +344,19 @@ def _build_result_payload(prompt, response, evaluation):
         "prompt_safety": parsed["prompt_safety"],
         "prompt_category": parsed["prompt_category"],
         "response_safety": parsed["response_safety"],
-        "behavior": behavior,
+        "behavior": hybrid_result["behavior"],
         "prompt_safety_pct": prompt_safety_pct,
         "response_safety_pct": response_safety_pct,
         "risk_pct": risk_pct,
         "safe_pct": 100 - risk_pct,
-        "ethical_score": scorecard["final"],
-        "scores": {
-            "toxicity": scorecard["toxicity"],
-            "bias": scorecard["bias"],
-            "safety": scorecard["safety"],
-            "privacy": scorecard["privacy"],
-            "truthfulness": scorecard["truthfulness"],
-        },
-        "issue_summary": issue_summary,
+        "ethical_score": hybrid_result["ethical_score"],
+        "scores": hybrid_result["scores"],
+        "issue_summary": hybrid_result["issue_summary"],
         "response_highlighted": _highlight_text(response, combined_matches),
+        "confidence_score": hybrid_result["confidence_score"],
+        "structured_explanations": hybrid_result["structured_explanations"],
+        "top_issue": hybrid_result["structured_explanations"][0]["issue"],
+        "timestamp": hybrid_result["timestamp"],
         "has_result": True,
     }
 
@@ -400,6 +398,24 @@ def ethical_metrics_api(request):
         return JsonResponse({"error": "evaluation failed", "message": "please try again"}, status=500)
 
 
+def evaluation_reports(request):
+    return render(request, "evaluation_reports.html", {"latest_report": get_latest_report()})
+
+
+def export_report(request):
+    try:
+        latest_report = get_latest_report()
+        if not latest_report:
+            return JsonResponse({"error": "evaluation failed", "message": "please try again"}, status=404)
+
+        pdf_bytes = build_evaluation_report_pdf(latest_report)
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = 'attachment; filename="ethical_ai_evaluation_report.pdf"'
+        return response
+    except Exception:
+        return JsonResponse({"error": "evaluation failed", "message": "please try again"}, status=500)
+
+
 def evaluate_prompt(request):
     if request.method != "POST":
         error_payload = {"error": "evaluation failed", "message": "please try again"}
@@ -421,8 +437,9 @@ def evaluate_prompt(request):
     try:
         response = generate_response(prompt)
         evaluation = evaluate_response(prompt, response)
-        payload = _build_result_payload(prompt, response, evaluation)
+        payload = _build_result_payload(prompt, response, evaluation, use_remote_models=True)
         store_latest_metrics(build_ethical_metrics(payload))
+        store_latest_report(payload)
     except Exception:
         error_payload = {"error": "evaluation failed", "message": "please try again"}
         if _wants_json(request):
@@ -448,9 +465,10 @@ def run_curated_tests(request):
             try:
                 response = _demo_response_for_prompt(prompt)
                 evaluation = evaluate_response(prompt, response)
-                result = _build_result_payload(prompt, response, evaluation)
+                result = _build_result_payload(prompt, response, evaluation, use_remote_models=False)
                 results.append(result)
                 store_latest_metrics(build_ethical_metrics(result))
+                store_latest_report(result)
             except Exception:
                 results.append(
                     {
@@ -466,6 +484,9 @@ def run_curated_tests(request):
                             "truthfulness": 0,
                         },
                         "issue_summary": ["evaluation failed"],
+                        "structured_explanations": [],
+                        "confidence_score": 0.0,
+                        "timestamp": "",
                         "has_result": True,
                     }
                 )

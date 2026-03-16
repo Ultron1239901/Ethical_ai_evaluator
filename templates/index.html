@@ -124,6 +124,7 @@
       <div class="ms-auto d-flex gap-2">
         <a href="/" class="btn btn-outline-primary btn-sm">Home</a>
         <a href="/ethical-metrics-dashboard/" class="btn btn-outline-primary btn-sm">Metrics</a>
+        <a href="/evaluation-reports/" class="btn btn-outline-primary btn-sm">Reports</a>
         <a href="/about/" class="btn btn-outline-primary btn-sm">About</a>
       </div>
     </div>
@@ -208,12 +209,20 @@
             </div>
           </div>
 
+          <div class="mini-label mb-1">Confidence Score</div>
+          <div class="fw-semibold mb-3" id="confidenceScoreText">{{ confidence_score|default:"-" }}</div>
+
           <div class="mini-label mb-2">Explanation Panel</div>
           <div class="border rounded-4 p-3 bg-light-subtle mb-3" id="evaluationText">{{ evaluation|default:"Run an evaluation to see the explanation here."|linebreaksbr }}</div>
 
           <div class="mini-label mb-2">Issue Highlighting</div>
           <div class="border rounded-4 p-3 bg-white issue-box" id="responseHighlighted">
             {% if response_highlighted %}{{ response_highlighted }}{% else %}Detected issue phrases will be highlighted here after evaluation.{% endif %}
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <a class="btn btn-outline-primary btn-sm" href="/evaluation-reports/">Evaluation Reports</a>
+            <a class="btn btn-primary btn-sm" href="/export-report">Download Evaluation Report</a>
           </div>
         </div>
       </div>
@@ -319,6 +328,7 @@
     const responseSafetyText = document.getElementById('responseSafetyText');
     const promptCategoryText = document.getElementById('promptCategoryText');
     const finalScoreBadge = document.getElementById('finalScoreBadge');
+    const confidenceScoreText = document.getElementById('confidenceScoreText');
 
     const initialScoresNode = document.getElementById('initialScores');
     const initialScores = initialScoresNode && initialScoresNode.textContent ? JSON.parse(initialScoresNode.textContent) : {};
@@ -326,17 +336,18 @@
     const scoreChart = new Chart(document.getElementById('scoreChart'), {
       type: 'bar',
       data: {
-        labels: ['Toxicity', 'Bias', 'Safety', 'Privacy', 'Truthfulness'],
+        labels: ['Safety', 'Bias', 'Toxicity', 'Privacy', 'Fairness', 'Hallucination'],
         datasets: [{
           label: 'Score',
           data: [
-            initialScores.toxicity || 0,
-            initialScores.bias || 0,
             initialScores.safety || 0,
+            initialScores.bias || 0,
+            initialScores.toxicity || 0,
             initialScores.privacy || 0,
-            initialScores.truthfulness || 0
+            initialScores.fairness || 0,
+            initialScores.hallucination || 0
           ],
-          backgroundColor: ['#60a5fa', '#93c5fd', '#2563eb', '#7dd3fc', '#38bdf8'],
+          backgroundColor: ['#2563eb', '#60a5fa', '#93c5fd', '#7dd3fc', '#38bdf8', '#0ea5e9'],
           borderRadius: 10
         }]
       },
@@ -401,15 +412,17 @@
       promptSafetyText.textContent = data.prompt_safety || '-';
       responseSafetyText.textContent = data.response_safety || '-';
       promptCategoryText.textContent = data.prompt_category || '-';
+      confidenceScoreText.textContent = data.confidence_score ?? '-';
       finalScoreBadge.textContent = `Final Score: ${data.ethical_score || 0}`;
       renderIssueSummary(data.issue_summary || ['No issues detected.']);
 
       scoreChart.data.datasets[0].data = [
-        data.scores.toxicity,
-        data.scores.bias,
         data.scores.safety,
+        data.scores.bias,
+        data.scores.toxicity,
         data.scores.privacy,
-        data.scores.truthfulness
+        data.scores.fairness,
+        data.scores.hallucination
       ];
       scoreChart.update();
     }
